@@ -35,11 +35,10 @@ const BoardSpace: React.FC<BoardSpaceProps> = ({
           isCorner ? "p-2" : "p-1"
         )}
       >
-        <div className="flex-1 flex flex-col items-center justify-center text-center text-xs">
-          <div className="animate-pulse h-4 w-20 bg-gray-300 rounded mb-2" />
-          {position > 0 && (
-            <div className="animate-pulse h-3 w-12 bg-gray-300 rounded" />
-          )}
+        <div className="h-full flex flex-col items-center justify-center text-center">
+          <div className="text-xs text-muted-foreground">
+            {position}
+          </div>
         </div>
       </motion.div>
     );
@@ -96,40 +95,13 @@ const BoardSpace: React.FC<BoardSpaceProps> = ({
   const handlePropertyClick = () => {
     if (safeProperty.color !== 'special' && safeProperty.id) {
       if (safeProperty.owner) {
-        // Show options for mortgaging/unmortgaging
-        const options = [
-          { label: 'Mortgage', action: onMortgage },
-          { label: 'Unmortgage', action: onUnmortgage }
-        ];
-        
-        const dialog = document.createElement('dialog');
-        dialog.innerHTML = `
-          <h3 class="font-bold mb-2">${safeProperty.name}</h3>
-          <div class="space-y-2">
-            ${options.map(option => `
-              <button 
-                onclick="this.closest('dialog').close('${option.label}')" 
-                class="w-full px-4 py-2 rounded bg-primary text-white hover:bg-primary/90"
-              >
-                ${option.label}
-              </button>
-            `).join('')}
-          </div>
-        `;
-        document.body.appendChild(dialog);
-        dialog.showModal();
-
-        dialog.addEventListener('close', () => {
-          const action = dialog.returnValue;
-          if (action === 'Mortgage' && onMortgage) {
-            onMortgage(safeProperty.id);
-          } else if (action === 'Unmortgage' && onUnmortgage) {
-            onUnmortgage(safeProperty.id);
-          }
-          dialog.remove();
-        });
+        // Property is owned - show property details
+        console.log('Property owned by:', safeProperty.owner);
       } else if (onBuy) {
         onBuy(safeProperty.id);
+      } else {
+        // Use store action if no callback provided
+        buyProperty(safeProperty.id);
       }
     }
   };
@@ -154,9 +126,9 @@ const BoardSpace: React.FC<BoardSpaceProps> = ({
       whileTap={{ scale: 0.95 }}
       onClick={handlePropertyClick}
       className={cn(
-        "property-space h-full w-full cursor-pointer transition-all duration-300",
+        "property-space h-full w-full cursor-pointer transition-all duration-300 bg-card border border-border rounded-md overflow-hidden",
         isCorner ? "p-2" : "p-1",
-        safeProperty.owner ? "ring-2 ring-gold-500" : "",
+        safeProperty.owner ? "ring-1 ring-primary" : "",
         safeProperty.mortgaged ? "opacity-50" : ""
       )}
     >
@@ -164,7 +136,7 @@ const BoardSpace: React.FC<BoardSpaceProps> = ({
       {safeProperty.color !== 'special' && (
         <motion.div 
           className={cn(
-            "w-full h-2 rounded-t",
+            "w-full h-1.5",
             getPropertyColorClass(safeProperty.color)
           )}
           animate={safeProperty.owner ? "owned" : ""}
@@ -173,25 +145,25 @@ const BoardSpace: React.FC<BoardSpaceProps> = ({
       )}
       
       {/* Property Content */}
-      <div className="flex-1 flex flex-col items-center justify-center text-center text-xs">
+      <div className="flex-1 flex flex-col items-center justify-center text-center text-xs p-1">
         {safeProperty.color === 'special' ? (
           <div className="flex flex-col items-center justify-center h-full">
             {getSpecialSpaceIcon()}
-            <span className="font-semibold text-gold-500 mt-1">
+            <span className="font-semibold text-gold-500 mt-1 text-[10px] leading-tight">
               {safeProperty.name?.split(' ')[0] ?? 'Special'}
             </span>
           </div>
         ) : (
           <>
-            <div className="font-semibold text-foreground leading-tight mb-1">
-              {safeProperty.name?.length > 12 
-                ? safeProperty.name?.substring(0, 12) + '...' 
+            <div className="font-semibold text-foreground leading-tight mb-1 text-[9px]">
+              {safeProperty.name?.length > 10 
+                ? safeProperty.name?.substring(0, 10) + '...' 
                 : safeProperty.name
               }
             </div>
             
             {safeProperty.price > 0 && (
-              <div className="text-gold-400 font-bold">
+              <div className="text-gold-400 font-bold text-[8px]">
                 ${safeProperty.price}
               </div>
             )}
@@ -199,17 +171,17 @@ const BoardSpace: React.FC<BoardSpaceProps> = ({
             {(safeProperty.houses > 0 || safeProperty.hotels > 0) && (
               <div className="flex gap-1 mt-1">
                 {Array(safeProperty.houses).fill(0).map((_, i) => (
-                  <HomeIcon key={i} className="w-2 h-2 text-game-property-house" />
+                  <HomeIcon key={i} className="w-1.5 h-1.5 text-green-500" />
                 ))}
                 {Array(safeProperty.hotels).fill(0).map((_, i) => (
-                  <BuildingOffice2Icon key={i} className="w-3 h-3 text-game-property-hotel" />
+                  <BuildingOffice2Icon key={i} className="w-2 h-2 text-red-500" />
                 ))}
               </div>
             )}
             
             {safeProperty.owner && (
               <motion.div 
-                className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-primary shadow-sm"
+                className="absolute bottom-1 right-1 w-1.5 h-1.5 rounded-full bg-primary shadow-sm"
                 animate={"owned"}
                 variants={propertyVariants}
               />
@@ -221,7 +193,7 @@ const BoardSpace: React.FC<BoardSpaceProps> = ({
                 animate={"mortgaged"}
                 variants={propertyVariants}
               >
-                <span className="text-red-500 font-bold text-xs">M</span>
+                <span className="text-red-500 font-bold text-[8px]">M</span>
               </motion.div>
             )}
           </>

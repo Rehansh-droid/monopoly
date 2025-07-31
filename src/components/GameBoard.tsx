@@ -8,8 +8,9 @@ import { cn } from '@/lib/utils';
 const GameBoard: React.FC = () => {
   const { properties, players, boardStyle, currentPlayer } = useGameStore();
 
-  // Create board layout - dynamic based on screen size
-  const createBoardLayout = (size: number) => {
+  // Create standard Monopoly board layout (11x11)
+  const createBoardLayout = () => {
+    const size = 11;
     const layout = Array(size).fill(null).map(() => Array(size).fill(null));
     
     // Bottom row (positions 0-10)
@@ -35,16 +36,8 @@ const GameBoard: React.FC = () => {
     return layout;
   };
 
-  // Get board size based on screen width
-  const getBoardSize = () => {
-    const width = window.innerWidth;
-    if (width >= 1280) return 11; // Large screens
-    if (width >= 768) return 9; // Medium screens
-    return 7; // Small screens
-  };
-
-  const boardSize = getBoardSize();
-  const boardLayout = createBoardLayout(boardSize);
+  const boardLayout = createBoardLayout();
+  const boardSize = 11;
 
   const getBoardSpaceProperty = (position: number) => {
     return properties.find(p => p.position === position);
@@ -60,11 +53,11 @@ const GameBoard: React.FC = () => {
   };
 
   return (
-    <div className="relative w-full h-full">
+    <div className="relative w-full h-full max-w-4xl mx-auto">
       {/* Board Background */}
       <motion.div 
         className={cn(
-          "absolute inset-0 rounded-lg border-4",
+          "relative w-full aspect-square rounded-lg border-4 shadow-2xl",
           boardVariants[boardStyle],
           "bg-cover bg-center"
         )}
@@ -73,14 +66,14 @@ const GameBoard: React.FC = () => {
         transition={{ duration: 0.8 }}
       >
         {/* Grid Lines */}
-        <div className="absolute inset-0 grid gap-0" style={{
+        <div className="absolute inset-0 grid gap-px" style={{
           gridTemplateRows: `repeat(${boardSize}, 1fr)`,
           gridTemplateColumns: `repeat(${boardSize}, 1fr)`
         }}>
           {boardLayout.map((row, rowIndex) => row.map((cell, colIndex) => (
             <motion.div
               key={`${rowIndex}-${colIndex}`}
-              className="border-b border-r border-gold-500"
+              className="border border-gold-500/30"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: (rowIndex + colIndex) * 0.02 }}
@@ -89,72 +82,59 @@ const GameBoard: React.FC = () => {
         </div>
 
         {/* Board Spaces */}
-        <div className="absolute inset-0 grid gap-0" style={{
+        <div className="absolute inset-0 grid gap-px p-1" style={{
           gridTemplateRows: `repeat(${boardSize}, 1fr)`,
           gridTemplateColumns: `repeat(${boardSize}, 1fr)`
         }}>
           {boardLayout.map((row, rowIndex) => row.map((cell, colIndex) => (
-            <BoardSpace
-              key={`${rowIndex}-${colIndex}`}
-              property={getBoardSpaceProperty(cell)}
-              position={cell}
-              isCorner={(rowIndex === 0 || rowIndex === boardSize - 1) && (colIndex === 0 || colIndex === boardSize - 1)}
-              onBuy={(propertyId) => {
-                // Handle buy property
-              }}
-              onMortgage={(propertyId) => {
-                // Handle mortgage property
-              }}
-              onUnmortgage={(propertyId) => {
-                // Handle unmortgage property
-              }}
-            />
+            <div key={`${rowIndex}-${colIndex}`} className="relative">
+              <BoardSpace
+                property={getBoardSpaceProperty(cell)}
+                position={cell}
+                isCorner={(rowIndex === 0 || rowIndex === boardSize - 1) && (colIndex === 0 || colIndex === boardSize - 1)}
+                onBuy={(propertyId) => {
+                  // Handle buy property
+                }}
+                onMortgage={(propertyId) => {
+                  // Handle mortgage property
+                }}
+                onUnmortgage={(propertyId) => {
+                  // Handle unmortgage property
+                }}
+              />
+              
+              {/* Player Tokens */}
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="flex flex-wrap gap-0.5 max-w-full">
+                  {getPlayersAtPosition(cell).map((player, index) => (
+                    <PlayerToken
+                      key={player.id}
+                      color={player.color}
+                      isCurrent={player.id === players[currentPlayer]?.id}
+                      player={player}
+                      size="sm"
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
           )))}
         </div>
 
-        {/* Player Tokens */}
-        {boardLayout.map((row, rowIndex) => row.map((cell, colIndex) => (
-          <div
-            key={`tokens-${rowIndex}-${colIndex}`}
-            className="absolute inset-0 grid gap-0"
-            style={{
-              gridTemplateRows: `repeat(${boardSize}, 1fr)`,
-              gridTemplateColumns: `repeat(${boardSize}, 1fr)`
-            }}
+        {/* Center Logo */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <motion.div
+            initial={{ opacity: 0, scale: 0 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 1, duration: 0.5 }}
+            className="text-center"
           >
-            <div className="flex items-center justify-center">
-              <div className="flex flex-col gap-1">
-                {getPlayersAtPosition(cell).map(player => (
-                  <PlayerToken
-                    key={player.id}
-                    color={player.color}
-                    isCurrent={player.id === players[currentPlayer].id}
-                    player={player}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        )))}
+            <div className="text-6xl mb-2">🏠</div>
+            <h2 className="text-2xl font-bold text-gold-400">MONOPOLY</h2>
+            <p className="text-sm text-gold-300">ELITE</p>
+          </motion.div>
+        </div>
       </motion.div>
-
-      {/* Responsive Controls */}
-      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex flex-col gap-2">
-        <motion.button
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.95 }}
-          className="px-4 py-2 rounded-full bg-primary text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-        >
-          Roll Dice
-        </motion.button>
-        <motion.button
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.95 }}
-          className="px-4 py-2 rounded-full bg-secondary text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-        >
-          End Turn
-        </motion.button>
-      </div>
     </div>
   );
 };

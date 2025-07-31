@@ -26,6 +26,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigateToLobby }) => {
   const [playerName, setPlayerName] = useState('');
   const [showJoinForm, setShowJoinForm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [createdGameId, setCreatedGameId] = useState('');
   const { toast } = useToast();
 
   const handleCreateGame = async () => {
@@ -42,10 +43,16 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigateToLobby }) => {
     try {
       const newGameId = await socketService.createGame(playerName.trim());
       if (newGameId) {
+        setCreatedGameId(newGameId);
+        const joinLink = `${window.location.origin}/join/${newGameId}`;
+        
+        // Copy link to clipboard
+        await navigator.clipboard.writeText(joinLink);
+        
         onNavigateToLobby(newGameId);
         toast({
           title: "Game Created!",
-          description: `Game ID: ${newGameId}. Share this with friends!`,
+          description: `Game ID: ${newGameId}. Join link copied to clipboard!`,
         });
       }
     } catch (error) {
@@ -106,20 +113,38 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigateToLobby }) => {
     setShowJoinForm(false);
     setGameId('');
   };
+  
+  const copyJoinLink = () => {
+    const joinLink = `${window.location.origin}/join/${createdGameId}`;
+    navigator.clipboard.writeText(joinLink);
+    toast({
+      title: "Link Copied!",
+      description: "Join link copied to clipboard",
+    });
+  };
+
+  const shareJoinLink = () => {
+    const joinLink = `${window.location.origin}/join/${createdGameId}`;
+    if (navigator.share) {
+      navigator.share({
+        title: 'Join my Monopoly game!',
+        text: 'Click this link to join my Monopoly game',
+        url: joinLink,
+      });
+    } else {
+      navigator.clipboard.writeText(joinLink);
+      toast({
+        title: "Link Copied!",
+        description: "Share this link with friends to join your game",
+      });
+    }
+  };
+
   const copyGameId = () => {
     navigator.clipboard.writeText(gameId);
     toast({
       title: "Copied!",
       description: "Game ID copied to clipboard",
-    });
-  };
-
-  const shareGameLink = () => {
-    const url = `${window.location.origin}?gameId=${gameId}`;
-    navigator.clipboard.writeText(url);
-    toast({
-      title: "Link Copied!",
-      description: "Share this link with friends to join your game",
     });
   };
 
@@ -219,6 +244,38 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigateToLobby }) => {
                   Create New Game
                 </Button>
               </motion.div>
+
+              {createdGameId && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="space-y-2"
+                >
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={copyJoinLink}
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                    >
+                      <ClipboardDocumentIcon className="w-4 h-4 mr-2" />
+                      Copy Link
+                    </Button>
+                    <Button
+                      onClick={shareJoinLink}
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                    >
+                      <ShareIcon className="w-4 h-4 mr-2" />
+                      Share
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground text-center">
+                    Share the link with friends to join your game
+                  </p>
+                </motion.div>
+              )}
 
               <div className="flex items-center gap-2">
                 <hr className="flex-1 border-border" />

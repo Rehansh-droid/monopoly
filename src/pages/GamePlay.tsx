@@ -4,20 +4,18 @@ import { motion } from 'framer-motion';
 import { useGameStore } from '../store/gameStore';
 import { socketService } from '../services/socketService';
 import GameBoard from '../components/GameBoard';
+import GamePanel from '../components/GamePanel';
 import { useToast } from '@/hooks/use-toast';
-import { Property } from '../store/gameStore';
-
-interface GamePlayProps {
-  onBuy: (propertyId: string) => Promise<void>;
-  onMortgage: (propertyId: string) => Promise<void>;
-  onUnmortgage: (propertyId: string) => Promise<void>;
-}
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { ArrowLeftIcon } from '@heroicons/react/24/solid';
 
 const GamePlay: React.FC = () => {
   const { gameId } = useParams<{ gameId: string }>();
   const navigate = useNavigate();
-  const { properties, players, currentPlayer, rollDice, movePlayer } = useGameStore();
+  const { properties, players, currentPlayer, rollDice, movePlayer, initializeGame } = useGameStore();
   const [currentRoom, setCurrentRoom] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -25,23 +23,18 @@ const GamePlay: React.FC = () => {
       try {
         if (!gameId) return;
         
-        // Get room state from backend
-        const room = await socketService.getRoomById(gameId);
-        setCurrentRoom(room);
+        setIsLoading(true);
+        
+        // Initialize mock game for now (replace with real socket data later)
+        const mockPlayers = ['Player 1', 'Player 2', 'Player 3'];
+        useGameStore.getState().initializeGame(mockPlayers);
+        
+        setCurrentRoom({ id: gameId, players: mockPlayers });
+        setIsLoading(false);
         
         // Listen for property updates
         socketService.onEvent('property-updated', (data) => {
           const { property, player, action } = data;
-          
-          // Update property in store
-          const updatedProperties = properties.map(p => 
-            p.id === property.id ? { ...p, ...property } : p
-          );
-          
-          // Update player in store
-          const updatedPlayers = players.map(p => 
-            p.id === player.id ? { ...p, ...player } : p
-          );
           
           // Show notification
           toast({
@@ -54,13 +47,6 @@ const GamePlay: React.FC = () => {
         // Listen for turn updates
         socketService.onEvent('turn-updated', (data) => {
           const { currentPlayer: newCurrentPlayer, players: updatedPlayers } = data;
-          
-          // Update current player in store
-          const updatedPlayersList = players.map(p => 
-            p.id === updatedPlayers[newCurrentPlayer].id ? 
-              { ...p, ...updatedPlayers[newCurrentPlayer] } : 
-              p
-          );
           
           // Show notification
           toast({
@@ -76,7 +62,9 @@ const GamePlay: React.FC = () => {
           description: 'Failed to load game',
           variant: 'destructive'
         });
-        navigate('/lobby');
+        navigate('/');
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -86,7 +74,7 @@ const GamePlay: React.FC = () => {
       socketService.offEvent('property-updated');
       socketService.offEvent('turn-updated');
     };
-  }, [gameId, navigate]);
+  }, [gameId, navigate, toast]);
 
   const handleBuyProperty = async (propertyId: string) => {
     try {
@@ -156,9 +144,13 @@ const GamePlay: React.FC = () => {
     }
   };
 
-  if (!currentRoom) {
+  const handleLeaveGame = () => {
+    navigate('/');
+  };
+
+  if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex items-center justify-center min-h-screen">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -172,28 +164,64 @@ const GamePlay: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col h-screen">
-      <div className="flex-1 overflow-hidden">
-        <GameBoard />
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <div className="border-b border-border bg-card/50 backdrop-blur-sm">
+        <div className="container mx-auto px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button
+                onClick={handleLeaveGame}
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <ArrowLeftIcon className="w-4 h-4 mr-2" />
+                Leave Game
+              </Button>
+              <div>
+                <h1 className="text-xl font-bold text-foreground">Monopoly Elite</h1>
+                <p className="text-sm text-muted-foreground">Game ID: {gameId}</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-sm font-medium text-foreground">
+                {players[currentPlayer]?.name}'s Turn
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {players.length} Players
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
-      <div className="p-4 bg-background/80 backdrop-blur-sm">
-        <div className="flex gap-4 justify-center">
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => rollDice()}
-            className="px-4 py-2 rounded-full bg-primary text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-          >
-            Roll Dice
-          </motion.button>
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={handleEndTurn}
-            className="px-4 py-2 rounded-full bg-secondary text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-          >
-            End Turn
-          </motion.button>
+
+      {/* Main Game Area */}
+      <div className="container mx-auto px-4 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-120px)]">
+          {/* Game Board - Left Side */}
+          <div className="lg:col-span-3 flex items-center justify-center">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.8 }}
+              className="w-full max-w-4xl"
+            >
+              <GameBoard />
+            </motion.div>
+          </div>
+
+          {/* Game Panel - Right Side */}
+          <div className="lg:col-span-1">
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+              className="h-full"
+            >
+              <GamePanel />
+            </motion.div>
+          </div>
         </div>
       </div>
     </div>
